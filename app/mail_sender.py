@@ -106,6 +106,12 @@ class MailSender:
                 send_request.msg[headers.FROM],
                 send_request.msg[headers.TO],
             )
+            LOG.d(
+                "email envelope from %s to %s msg =\n%s",
+                send_request.envelope_from,
+                send_request.envelope_to,
+                send_request.msg,
+            )
             return
         if not self._pool:
             self._send_to_smtp(send_request, retries)
