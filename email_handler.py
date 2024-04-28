@@ -34,6 +34,7 @@ import argparse
 import email
 import time
 import uuid
+import re
 from email import encoders
 from email.encoders import encode_noop
 from email.message import Message
@@ -694,6 +695,8 @@ def handle_forward(envelope, msg: Message, rcpt_to: str) -> List[Tuple[bool, str
 
     return ret
 
+re_dkim=re.compile("\sdkim=([^\s]+)", flags=re.IGNORECASE)
+re_reply=re.compile("[=:\s]reply-to[\s:;]", flags=re.IGNORECASE)
 
 def forward_email_to_mailbox(
     alias,
@@ -703,8 +706,30 @@ def forward_email_to_mailbox(
     mailbox,
     user,
     reply_to_contact: Optional[Contact],
+    rewrite: bool = False
 ) -> (bool, str):
     LOG.d("Forward %s -> %s -> %s", contact, alias, mailbox)
+
+    if not rewrite:
+        hdrs = []
+        _pass = None
+        ar = msg.get_all("Authentication-Results")
+        LOG.d("AR = %s", ar)
+        if ar:
+            hdrs = ar
+        for h in hdrs:
+            res = re_dkim.search(h)
+            if (res):
+                LOG.d("ar dkim result = %s", res.group(1))
+                _pass = res.group(1) == "pass"
+                break
+        if _pass:
+            dkim_signature = get_header_unicode(msg[headers.DKIM_SIGNATURE])
+            LOG.d("dkim_signature = %s", dkim_signature)
+            res = re_reply.search(dkim_signature)
+            if res:
+                LOG.i("Reply-To header is signed. Forward as new email")
+                return forward_email_to_mailbox(alias, msg, contact, envelope, mailbox, user, reply_to_contact, True)
 
     if mailbox.disabled:
         LOG.d("%s disabled, do not forward")
@@ -807,22 +832,23 @@ def forward_email_to_mailbox(
             f"""Email sent to {alias.email} from an invalid address and cannot be replied""",
         )
 
-    delete_all_headers_except(
-        msg,
-        [
-            headers.FROM,
-            headers.TO,
-            headers.CC,
-            headers.SUBJECT,
-            headers.DATE,
-            # do not delete original message id
-            headers.MESSAGE_ID,
-            # References and In-Reply-To are used for keeping the email thread
-            headers.REFERENCES,
-            headers.IN_REPLY_TO,
-        ]
-        + headers.MIME_HEADERS,
-    )
+    if rewrite:
+        delete_all_headers_except(
+            msg,
+            [
+                headers.FROM,
+                headers.TO,
+                headers.CC,
+                headers.SUBJECT,
+                headers.DATE,
+                # do not delete original message id
+                headers.MESSAGE_ID,
+                # References and In-Reply-To are used for keeping the email thread
+                headers.REFERENCES,
+                headers.IN_REPLY_TO,
+            ]
+            + headers.MIME_HEADERS,
+        )
 
     # create PGP email if needed
     if mailbox.pgp_enabled() and user.is_premium() and not alias.disable_pgp:
@@ -869,7 +895,8 @@ def forward_email_to_mailbox(
     # replace the email part in from: header
     old_from_header = msg[headers.FROM]
     new_from_header = contact.new_addr()
-    add_or_replace_header(msg, "From", new_from_header)
+    if rewrite:
+        add_or_replace_header(msg, "From", new_from_header)
     LOG.d("From header, new:%s, old:%s", new_from_header, old_from_header)
 
     if reply_to_contact:
@@ -877,19 +904,24 @@ def forward_email_to_mailbox(
         new_reply_to_header = reply_to_contact.new_addr()
         add_or_replace_header(msg, "Reply-To", new_reply_to_header)
         LOG.d("Reply-To header, new:%s, old:%s", new_reply_to_header, reply_to_header)
+    else:
+        add_or_replace_header(msg, "Reply-To", new_from_header)
+        LOG.d("Add new Reply-To header, taken from the From header: %s", new_from_header)
 
     # replace CC & To emails by reverse-alias for all emails that are not alias
-    try:
-        replace_header_when_forward(msg, alias, headers.CC)
-        replace_header_when_forward(msg, alias, headers.TO)
-    except CannotCreateContactForReverseAlias:
-        LOG.d("CannotCreateContactForReverseAlias error, delete %s", email_log)
-        EmailLog.delete(email_log.id)
-        Session.commit()
-        raise
+    if rewrite:
+        try:
+            replace_header_when_forward(msg, alias, headers.CC)
+            replace_header_when_forward(msg, alias, headers.TO)
+        except CannotCreateContactForReverseAlias:
+            LOG.d("CannotCreateContactForReverseAlias error, delete %s", email_log)
+            EmailLog.delete(email_log.id)
+            Session.commit()
+            raise
 
     # add alias to To: header if it isn't included in To and Cc header
-    add_alias_to_header_if_needed(msg, alias)
+    if rewrite:
+        add_alias_to_header_if_needed(msg, alias)
 
     # add List-Unsubscribe header
     if user.one_click_unsubscribe_block_sender:
@@ -897,13 +929,12 @@ def forward_email_to_mailbox(
     else:
         unsubscribe_link, via_email = alias.unsubscribe_link()
 
-    add_or_replace_header(msg, headers.LIST_UNSUBSCRIBE, f"<{unsubscribe_link}>")
-    if not via_email:
-        add_or_replace_header(
-            msg, headers.LIST_UNSUBSCRIBE_POST, "List-Unsubscribe=One-Click"
-        )
-
-    add_dkim_signature(msg, EMAIL_DOMAIN)
+    if rewrite or not msg[headers.LIST_UNSUBSCRIBE]:
+        add_or_replace_header(msg, headers.LIST_UNSUBSCRIBE, f"<{unsubscribe_link}>")
+        if not via_email:
+            add_or_replace_header(
+                msg, headers.LIST_UNSUBSCRIBE_POST, "List-Unsubscribe=One-Click"
+            )
 
     LOG.d(
         "Forward mail from %s to %s, mail_options:%s, rcpt_options:%s ",
