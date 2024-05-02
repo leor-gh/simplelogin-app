@@ -45,6 +45,7 @@ else:
     load_dotenv()
 
 COLOR_LOG = "COLOR_LOG" in os.environ
+LOG_LEVEL = os.environ["LOG_LEVEL"]
 
 # Allow user to have 1 year of premium: set the expiration_date to 1 year more
 PROMO_CODE = "SIMPLEISBETTER"

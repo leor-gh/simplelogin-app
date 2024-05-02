@@ -6,6 +6,7 @@ import coloredlogs
 
 from app.config import (
     COLOR_LOG,
+    LOG_LEVEL,
 )
 
 # this format allows clickable link to code source in PyCharm
@@ -48,7 +49,21 @@ def _get_console_handler():
 def _get_logger(name) -> logging.Logger:
     logger = logging.getLogger(name)
 
-    logger.setLevel(logging.DEBUG)
+    log_level = logging.NOTSET
+    match LOG_LEVEL:
+        case "DEBUG":
+            log_level = logging.DEBUG
+        case "INFO":
+            log_level = logging.INFO
+        case "WARNING":
+            log_level = logging.WARNING
+        case "ERROR":
+            log_level = logging.ERROR
+        case "CRITICAL":
+            log_level = logging.CRITICAL
+    print(">>> log level = " + LOG_LEVEL + " <<<")
+
+    logger.setLevel(log_level)
 
     # leave the handlers level at NOTSET so the level checking is only handled by the logger
     logger.addHandler(_get_console_handler())
