@@ -483,3 +483,16 @@ PARTNER_API_TOKEN_SECRET = os.environ.get("PARTNER_API_TOKEN_SECRET") or (
 )
 
 SQLALCHEMY_POOL_PRE_PING = "SQLALCHEMY_POOL_PRE_PING" in os.environ
+
+
+SL_PORT = 7777
+if "SL_PORT" in os.environ:
+    SL_PORT = int(os.environ["SL_PORT"])
+
+SL_SMTP_PORT = 20381
+if "SL_SMTP_PORT" in os.environ:
+    SL_SMTP_PORT = int(os.environ["SL_SMTP_PORT"])
+
+SL_PREFIX = ""
+if "SL_PREFIX" in os.environ:
+    SL_PREFIX = os.environ["SL_PREFIX"]

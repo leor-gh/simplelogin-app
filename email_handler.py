@@ -83,6 +83,7 @@ from app.config import (
     OLD_UNSUBSCRIBER,
     ALERT_FROM_ADDRESS_IS_REVERSE_ALIAS,
     ALERT_TO_NOREPLY,
+    SL_SMTP_PORT,
 )
 from app.db import Session
 from app.email import status, headers
@@ -2464,7 +2465,7 @@ def main(port: int):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-p", "--port", help="SMTP port to listen for", type=int, default=20381
+        "-p", "--port", help="SMTP port to listen for", type=int, default=SL_SMTP_PORT
     )
     args = parser.parse_args()
 
