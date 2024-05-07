@@ -6,7 +6,7 @@ from flask_admin.model.template import EndpointLinkRowAction
 from markupsafe import Markup
 
 from app import models, s3
-from flask import redirect, url_for, request, flash, Response
+from flask import redirect, url_for, request, flash, Response, abort
 from flask_admin import expose, AdminIndexView
 from flask_admin.actions import action
 from flask_admin.contrib import sqla
@@ -41,7 +41,9 @@ class SLModelView(sqla.ModelView):
 
     def inaccessible_callback(self, name, **kwargs):
         # redirect to login page if user doesn't have access
-        return redirect(url_for("auth.login", next=request.url))
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.login", next=request.url))
+        abort(403)
 
     def on_model_change(self, form, model, is_created):
         changes = {}
@@ -83,7 +85,7 @@ class SLModelView(sqla.ModelView):
 class SLAdminIndexView(AdminIndexView):
     @expose("/")
     def index(self):
-        if not current_user.is_authenticated or not current_user.is_admin:
+        if not current_user.is_authenticated:
             return redirect(url_for("auth.login", next=request.url))
 
         return redirect("/admin/user")
