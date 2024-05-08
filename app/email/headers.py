@@ -32,8 +32,10 @@ DKIM_HEADERS = [
 SL_DIRECTION = "X-SimpleLogin-Type"
 SL_EMAIL_LOG_ID = "X-SimpleLogin-EmailLog-ID"
 SL_ENVELOPE_FROM = "X-SimpleLogin-Envelope-From"
+SL_ORIGINAL_FROM = "X-SimpleLogin-Original-From"
 SL_ENVELOPE_TO = "X-SimpleLogin-Envelope-To"
 SL_CLIENT_IP = "X-SimpleLogin-Client-IP"
+SL_REPLY_TO = "X-SimpleLogin-Reply-To"
 
 # to let Rspamd know that the message should be signed
 SL_WANT_SIGNING = "X-SimpleLogin-Want-Signing"

@@ -833,6 +833,9 @@ def forward_email_to_mailbox(
             f"""Email sent to {alias.email} from an invalid address and cannot be replied""",
         )
 
+    # save the original reply-to
+    original_reply_to = msg[headers.REPLY_TO]
+
     if rewrite:
         delete_all_headers_except(
             msg,
@@ -883,6 +886,8 @@ def forward_email_to_mailbox(
     msg[headers.SL_EMAIL_LOG_ID] = str(email_log.id)
     if user.include_header_email_header:
         msg[headers.SL_ENVELOPE_FROM] = envelope.mail_from
+        if rewrite:
+            msg[headers.SL_ORIGINAL_FROM] = msg[headers.FROM]
     # when an alias isn't in the To: header, there's no way for users to know what alias has received the email
     msg[headers.SL_ENVELOPE_TO] = alias.email
 
@@ -903,6 +908,7 @@ def forward_email_to_mailbox(
     if reply_to_contact:
         reply_to_header = msg[headers.REPLY_TO]
         new_reply_to_header = reply_to_contact.new_addr()
+        msg[headers.SL_REPLY_TO] = original_reply_to
         add_or_replace_header(msg, "Reply-To", new_reply_to_header)
         LOG.d("Reply-To header, new:%s, old:%s", new_reply_to_header, reply_to_header)
     else:
