@@ -4,6 +4,7 @@ import time
 import urllib.parse
 from functools import wraps
 from typing import List, Optional
+from flask import url_for
 
 from unidecode import unidecode
 
@@ -88,7 +89,7 @@ class NextUrlSanitizer:
             else:
                 return None
         if result.path and result.path[0] == "/":
-            return result.path
+            return url_for("index") + result.path[1:]
 
         return None
 

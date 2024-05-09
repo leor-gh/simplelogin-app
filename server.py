@@ -19,6 +19,7 @@ from flask import (
     flash,
     session,
     g,
+    make_response,
 )
 from flask_admin import Admin
 from flask_cors import cross_origin, CORS
@@ -70,7 +71,6 @@ from app.config import (
     PADDLE_COUPON_ID,
     ZENDESK_ENABLED,
     SL_PORT,
-    SL_PREFIX,
 )
 from app.dashboard.base import dashboard_bp
 from app.db import Session
@@ -130,9 +130,9 @@ def create_light_app() -> Flask:
 
 
 def create_app() -> Flask:
-    app = Flask(__name__, static_url_path=f"{SL_PREFIX}/static")
+    app = Flask(__name__)
     # SimpleLogin is deployed behind NGINX
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_prefix=1)
     limiter.init_app(app)
 
     app.url_map.strict_slashes = False
@@ -170,9 +170,10 @@ def create_app() -> Flask:
     setup_openid_metadata(app)
 
     init_admin(app)
-    # setup_paddle_callback(app)	# dont fix for now
-    # setup_coinbase_commerce(app)	# dont fix for now
-    # setup_do_not_track(app)	# dont fix for now
+    setup_paddle_callback(app)
+    setup_coinbase_commerce(app)
+    setup_do_not_track(app)
+    render_js(app)
     register_custom_commands(app)
 
     if FLASK_PROFILER_PATH:
@@ -185,12 +186,12 @@ def create_app() -> Flask:
                 "username": "admin",
                 "password": FLASK_PROFILER_PASSWORD,
             },
-            "ignore": [f"^{SL_PREFIX}/static/.*", f"{SL_PREFIX}/git", "/exception"],
+            "ignore": ["^/static/.*", "/git", "/exception"],
         }
         flask_profiler.init_app(app)
 
     # enable CORS on /api endpoints
-    CORS(app, resources={f"{SL_PREFIX}" + r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # set session to permanent so user stays signed in after quitting the browser
     # the cookie is valid for 7 days
@@ -216,22 +217,22 @@ def load_user(alternative_id):
 
 
 def register_blueprints(app: Flask):
-    app.register_blueprint(auth_bp, url_prefix=f"{SL_PREFIX}/auth")
-    app.register_blueprint(monitor_bp, url_prefix=f"{SL_PREFIX}/")
-    app.register_blueprint(dashboard_bp, url_prefix=f"{SL_PREFIX}/dashboard")
-    app.register_blueprint(developer_bp, url_prefix=f"{SL_PREFIX}/developer")
-    app.register_blueprint(phone_bp, url_prefix=f"{SL_PREFIX}/phone")
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(monitor_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(developer_bp)
+    app.register_blueprint(phone_bp)
 
-    app.register_blueprint(oauth_bp, url_prefix=f"{SL_PREFIX}/oauth")
-    app.register_blueprint(oauth_bp, url_prefix=f"{SL_PREFIX}/oauth2")
-    app.register_blueprint(onboarding_bp, url_prefix=f"{SL_PREFIX}/onboarding")
+    app.register_blueprint(oauth_bp, url_prefix="/oauth")
+    app.register_blueprint(oauth_bp, url_prefix="/oauth2")
+    app.register_blueprint(onboarding_bp)
 
-    app.register_blueprint(discover_bp, url_prefix=f"{SL_PREFIX}/discover")
-    app.register_blueprint(api_bp, url_prefix=f"{SL_PREFIX}/api")
+    app.register_blueprint(discover_bp)
+    app.register_blueprint(api_bp)
 
 
 def set_index_page(app):
-    @app.route(f"{SL_PREFIX}/", methods=["GET", "POST"])
+    @app.route("/", methods=["GET", "POST"])
     def index():
         if current_user.is_authenticated:
             return redirect(url_for("dashboard.index"))
@@ -242,9 +243,9 @@ def set_index_page(app):
     def before_request():
         # not logging /static call
         if (
-            not request.path.startswith(f"{SL_PREFIX}/static")
-            and not request.path.startswith(f"{SL_PREFIX}/admin/static")
-            and not request.path.startswith("/_debug_toolbar")	# fix?
+            not request.path.startswith("/static")
+            and not request.path.startswith("/admin/static")
+            and not request.path.startswith("/_debug_toolbar")
         ):
             g.start_time = time.time()
 
@@ -255,13 +256,22 @@ def set_index_page(app):
 
     @app.after_request
     def after_request(res):
+#        # Get a list of all routes defined in the app
+#        routes = []
+#        for rule in app.url_map.iter_rules():
+#            routes.append((rule.endpoint))
+
+#        # Print the list of routes
+#        for route in routes:
+#            print(route)
+
         # not logging /static call
         if (
-            not request.path.startswith(f"{SL_PREFIX}/static")
-            and not request.path.startswith(f"{SL_PREFIX}/admin/static")
-            and not request.path.startswith("/_debug_toolbar")	# fix?
-            and not request.path.startswith(f"{SL_PREFIX}/git")
-            and not request.path.startswith(f"{SL_PREFIX}/favicon.ico")
+            not request.path.startswith("/static")
+            and not request.path.startswith("/admin/static")
+            and not request.path.startswith("/_debug_toolbar")
+            and not request.path.startswith("/git")
+            and not request.path.startswith("/favicon.ico")
         ):
             LOG.d(
                 "%s %s %s %s %s, takes %s",
@@ -277,15 +287,15 @@ def set_index_page(app):
 
 
 def setup_openid_metadata(app):
-    @app.route(f"{SL_PREFIX}/.well-known/openid-configuration")
+    @app.route("/.well-known/openid-configuration")
     @cross_origin()
     def openid_config():
         res = {
             "issuer": URL,
-            "authorization_endpoint": URL + f"{SL_PREFIX}/oauth2/authorize",
-            "token_endpoint": URL + f"{SL_PREFIX}/oauth2/token",
-            "userinfo_endpoint": URL + f"{SL_PREFIX}/oauth2/userinfo",
-            "jwks_uri": URL + f"{SL_PREFIX}/jwks",
+            "authorization_endpoint": URL + "/oauth2/authorize",
+            "token_endpoint": URL + "/oauth2/token",
+            "userinfo_endpoint": URL + "/oauth2/userinfo",
+            "jwks_uri": URL + "/jwks",
             "response_types_supported": [
                 "code",
                 "token",
@@ -296,13 +306,13 @@ def setup_openid_metadata(app):
             "subject_types_supported": ["public"],
             "id_token_signing_alg_values_supported": ["RS256"],
             # todo: add introspection and revocation endpoints
-            # "introspection_endpoint": URL + f"{SL_PREFIX}/oauth2/token/introspection",
-            # "revocation_endpoint": URL + f"{SL_PREFIX}/oauth2/token/revocation",
+            # "introspection_endpoint": URL + "/oauth2/token/introspection",
+            # "revocation_endpoint": URL + "/oauth2/token/revocation",
         }
 
         return jsonify(res)
 
-    @app.route(f"{SL_PREFIX}/jwks")
+    @app.route("/jwks")
     @cross_origin()
     def jwks():
         res = {"keys": [get_jwk_key()]}
@@ -319,14 +329,14 @@ def get_current_user():
 def setup_error_page(app):
     @app.errorhandler(400)
     def bad_request(e):
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Bad Request"), 400
         else:
             return render_template("error/400.html"), 400
 
     @app.errorhandler(401)
     def unauthorized(e):
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Unauthorized"), 401
         else:
             flash("You need to login to see this page", "error")
@@ -334,7 +344,7 @@ def setup_error_page(app):
 
     @app.errorhandler(403)
     def forbidden(e):
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Forbidden"), 403
         else:
             return render_template("error/403.html"), 403
@@ -346,21 +356,21 @@ def setup_error_page(app):
             request.path,
             get_current_user(),
         )
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Rate limit exceeded"), 429
         else:
             return render_template("error/429.html"), 429
 
     @app.errorhandler(404)
     def page_not_found(e):
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="No such endpoint"), 404
         else:
             return render_template("error/404.html"), 404
 
     @app.errorhandler(405)
     def wrong_method(e):
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Method not allowed"), 405
         else:
             return render_template("error/405.html"), 405
@@ -368,16 +378,16 @@ def setup_error_page(app):
     @app.errorhandler(Exception)
     def error_handler(e):
         LOG.e(e)
-        if request.path.startswith(f"{SL_PREFIX}/api/"):
+        if request.path.startswith("/api/"):
             return jsonify(error="Internal error"), 500
         else:
             return render_template("error/500.html"), 500
 
 
 def setup_favicon_route(app):
-    @app.route(f"{SL_PREFIX}/favicon.ico")
+    @app.route("/favicon.ico")
     def favicon():
-        return redirect(f"{SL_PREFIX}/static/favicon.ico")
+        return redirect(url_for("static", filename="favicon.ico"))
 
 
 def jinja2_filter(app):
@@ -730,7 +740,7 @@ def init_extensions(app: Flask):
 def init_admin(app):
     admin = Admin(name="SimpleLogin", template_mode="bootstrap4")
 
-    admin.init_app(app, index_view=SLAdminIndexView(url=f"{SL_PREFIX}/admin"))
+    admin.init_app(app, index_view=SLAdminIndexView())
     admin.add_view(UserAdmin(User, Session))
     admin.add_view(AliasAdmin(Alias, Session))
     admin.add_view(MailboxAdmin(Mailbox, Session))
@@ -798,6 +808,14 @@ window.location.href = "/";
 
 </script>
         """
+
+
+def render_js(app):
+    @app.route("/static/js/index.js")
+    def index_js():
+        resp = make_response(render_template("index.js"))
+        resp.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+        return resp
 
 
 def local_main():

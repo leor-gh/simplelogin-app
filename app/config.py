@@ -492,7 +492,3 @@ if "SL_PORT" in os.environ:
 SL_SMTP_PORT = 20381
 if "SL_SMTP_PORT" in os.environ:
     SL_SMTP_PORT = int(os.environ["SL_SMTP_PORT"])
-
-SL_PREFIX = ""
-if "SL_PREFIX" in os.environ:
-    SL_PREFIX = os.environ["SL_PREFIX"]

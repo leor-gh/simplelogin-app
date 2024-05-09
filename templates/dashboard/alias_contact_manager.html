@@ -253,7 +253,7 @@
     async function blockContact(contactID, contactEmail) {
       let oldValue;
       try {
-        let res = await fetch(`/api/contacts/${contactID}/toggle`, {
+        let res = await fetch(`{{ url_for('api.toggle_contact', contact_id=-1).replace('/-1/', '/${contactID}/') }}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

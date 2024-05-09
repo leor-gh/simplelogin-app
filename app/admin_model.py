@@ -88,7 +88,7 @@ class SLAdminIndexView(AdminIndexView):
         if not current_user.is_authenticated:
             return redirect(url_for("auth.login", next=request.url))
 
-        return redirect("/admin/user")
+        return redirect(url_for("admin.index") + "user")
 
 
 class UserAdmin(SLModelView):
@@ -427,16 +427,16 @@ class ProviderComplaintAdmin(SLModelView):
     def mark_ok(self):
         complaint = self._get_complaint()
         if not complaint:
-            return redirect("/admin/transactionalcomplaint/")
+            return redirect(url_for("admin.index") + "transactionalcomplaint/")
         complaint.state = ProviderComplaintState.reviewed.value
         Session.commit()
-        return redirect("/admin/transactionalcomplaint/")
+        return redirect(url_for("admin.index") + "transactionalcomplaint/")
 
     @expose("/download_eml", methods=["GET"])
     def download_eml(self):
         complaint = self._get_complaint()
         if not complaint:
-            return redirect("/admin/transactionalcomplaint/")
+            return redirect(url_for("admin.index") + "transactionalcomplaint/")
         eml_path = complaint.refused_email.full_report_path
         eml_data = s3.download_email(eml_path)
         AdminAuditLog.downloaded_provider_complaint(current_user.id, complaint.id)

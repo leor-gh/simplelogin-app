@@ -54,7 +54,7 @@ $(".enable-disable-alias").change(async function () {
 async function disableAlias(aliasId, alias) {
   let oldValue;
   try {
-    let res = await fetch(`/api/aliases/${aliasId}/toggle`, {
+    let res = await fetch(`{{ url_for('api.toggle_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -92,7 +92,7 @@ $(".enable-disable-pgp").change(async function (e) {
   let newValue = !oldValue;
 
   try {
-    let res = await fetch(`/api/aliases/${aliasId}`, {
+    let res = await fetch(`{{ url_for('api.update_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -127,7 +127,7 @@ $(".pin-alias").change(async function () {
   let newValue = !oldValue;
 
   try {
-    let res = await fetch(`/api/aliases/${aliasId}`, {
+    let res = await fetch(`{{ url_for('api.update_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -161,7 +161,7 @@ $(".save-note").on("click", async function () {
   let note = $(`#note-${aliasId}`).val();
 
   try {
-    let res = await fetch(`/api/aliases/${aliasId}`, {
+    let res = await fetch(`{{ url_for('api.update_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -199,7 +199,7 @@ $(".save-mailbox").on("click", async function () {
   }
 
   try {
-    let res = await fetch(`/api/aliases/${aliasId}`, {
+    let res = await fetch(`{{ url_for('api.update_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -231,7 +231,7 @@ $(".save-alias-name").on("click", async function () {
   let name = $(`#alias-name-${aliasId}`).val();
 
   try {
-    let res = await fetch(`/api/aliases/${aliasId}`, {
+    let res = await fetch(`{{ url_for('api.update_alias', alias_id='-1').replace('/-1', '/${aliasId}') }}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

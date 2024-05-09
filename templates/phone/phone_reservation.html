@@ -99,7 +99,7 @@
           let that = this;
           console.log("load messages");
 
-          let res = await fetch(`/api/phone/reservations/{{reservation.id}}`, {
+          let res = await fetch(`{{ url_for('api.phone_messages', reservation_id=reservation.id) }}`, {
             method: "GET",
             headers: {
               "Content-Type": "application/json",

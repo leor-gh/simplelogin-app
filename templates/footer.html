@@ -195,7 +195,7 @@
     methods: {
       markAsRead: async function (notification) {
         notification.read = true;
-        let res = await fetch(`/api/notifications/${notification.id}/read`, {
+        let res = await fetch(`{{ url_for('api.mark_as_read', notification_id=-1).replace('/-1/', '/${notification.id}/') }}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -211,7 +211,7 @@
         let that = this;
         that.page += 1;
 
-        let res = await fetch(`/api/notifications?page=${that.page}`, {
+        let res = await fetch(`{{ url_for('api.get_notifications') }}?page=${that.page}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -227,7 +227,7 @@
     },
     async mounted() {
       let that = this;
-      let res = await fetch(`/api/notifications?page=${that.page}`, {
+      let res = await fetch(`{{ url_for('api.get_notifications') }}?page=${that.page}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
