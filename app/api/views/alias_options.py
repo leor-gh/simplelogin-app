@@ -63,7 +63,8 @@ def options_v4():
     if hostname:
         # keep only the domain name of hostname, ignore TLD and subdomain
         # for ex www.groupon.com -> groupon
-        ext = tldextract.extract(hostname)
+        no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=())
+        ext = no_fetch_extract(hostname)
         prefix_suggestion = ext.domain
         prefix_suggestion = convert_to_id(prefix_suggestion)
         ret["prefix_suggestion"] = prefix_suggestion
@@ -134,7 +135,8 @@ def options_v5():
     if hostname:
         # keep only the domain name of hostname, ignore TLD and subdomain
         # for ex www.groupon.com -> groupon
-        ext = tldextract.extract(hostname)
+        no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=())
+        ext = no_fetch_extract(hostname)
         prefix_suggestion = ext.domain
         prefix_suggestion = convert_to_id(prefix_suggestion)
         ret["prefix_suggestion"] = prefix_suggestion
