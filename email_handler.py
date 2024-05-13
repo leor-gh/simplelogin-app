@@ -697,7 +697,7 @@ def handle_forward(envelope, msg: Message, rcpt_to: str) -> List[Tuple[bool, str
     return ret
 
 re_dkim=re.compile("\sdkim=([^\s]+)", flags=re.IGNORECASE)
-re_reply=re.compile("[=:\s]reply-to[\s:;]", flags=re.IGNORECASE)
+re_secure_headers=re.compile(f"[=:\s]({headers.REPLY_TO}|{headers.LIST_UNSUBSCRIBE}|{headers.LIST_UNSUBSCRIBE_POST})[\s:;]", flags=re.IGNORECASE)
 
 def forward_email_to_mailbox(
     alias,
@@ -727,9 +727,9 @@ def forward_email_to_mailbox(
         if _pass:
             dkim_signature = get_header_unicode(msg[headers.DKIM_SIGNATURE])
             LOG.d("dkim_signature = %s", dkim_signature)
-            res = re_reply.search(dkim_signature)
+            res = re_secure_headers.search(dkim_signature)
             if res:
-                LOG.i("Reply-To header is signed. Forward as new email")
+                LOG.i(f"Found secure headers: {res.group(1)}. Forward as new email")
                 return forward_email_to_mailbox(alias, msg, contact, envelope, mailbox, user, reply_to_contact, True)
 
     if mailbox.disabled:
@@ -942,6 +942,9 @@ def forward_email_to_mailbox(
             add_or_replace_header(
                 msg, headers.LIST_UNSUBSCRIBE_POST, "List-Unsubscribe=One-Click"
             )
+
+    if rewrite:
+        add_dkim_signature(msg, EMAIL_DOMAIN)
 
     LOG.d(
         "Forward mail from %s to %s, mail_options:%s, rcpt_options:%s ",
